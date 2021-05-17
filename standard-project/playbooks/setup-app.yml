@@ -1,0 +1,49 @@
+# setup-app.yml
+---
+  - hosts: webservers
+    become: true
+
+    vars:
+      path_to_app: "/var/www/html"
+    
+    vars_files:
+      - ../vars/secret-variables.yml
+
+    vars_prompt:
+      - name: "upload_var"
+        prompt: "Upload the index.php file? 🥸 🥸 🥸"
+      - name: "create_var"
+        prompt: "create the info.php file? 🥸 🥸 🥸"
+
+    tasks:
+      - name: Upload application file
+        copy:
+          src: ../index.php
+          dest: "{{ path_to_app }}"
+          mode: 0755
+        when: upload_var == "yes"
+        tags: upload
+      - name: Use secret password here
+        debug:
+          msg: "{{ secret_password }}"
+      - name: Create simple info page
+        copy:
+          dest: "{{ path_to_app }}/info.php"
+          content: '<h1> you hostname is: {{ansible_hostname}}</h1>'
+        when: create_var == "yes"
+        tags: create
+      - name: See content folder
+        command: "ls -al {{ path_to_app }}"
+        register: folder_content
+      - name: Debug folder
+        debug:
+          msg: "{{folder_content}}"
+      - name: Configure php.ini file
+        lineinfile:
+          path: /etc/php.ini
+          regexp: ^short_open_tag
+          line: 'short_open_tag=On'
+        notify: Restart apache
+    handlers:  
+      - name: Restart apache
+        service: name=httpd state=restarted
